@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday!</title>
+    <!-- Use Tailwind CSS for rapid styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include Three.js for a more advanced particle animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Use Google Fonts for a modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS for animations and layout */
+        :root {
+            --primary-color: #6366f1; /* Tailwind's indigo-500 */
+            --background-color: #0d1117; /* Dark background */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: #ffffff;
+            overflow: hidden; /* Hide scrollbars */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+
+        #ui-container, #message-container, #game-select-container, #game-container, #post-game-container, #secret-container, #final-message-container {
+            display: none; /* Initially hidden */
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.7);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            max-width: 90%;
+            z-index: 10;
+        }
+
+        #ui-container.visible {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .visible {
+            display: flex !important;
+            opacity: 1 !important;
+            transform: scale(1) !important;
+        }
+        
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f1c40f;
+            border-radius: 50%;
+            opacity: 0;
+            animation-name: confetti-fall;
+            animation-duration: 4s;
+            animation-fill-mode: forwards;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translate(0, 0) rotateZ(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) rotateZ(var(--r));
+                opacity: 0;
+            }
+        }
+
+        .emoji-animation {
+            position: absolute;
+            font-size: 2rem;
+            animation: floatUp 8s ease-in-out infinite;
+            pointer-events: none;
+            opacity: 0;
+        }
+        
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 0; }
+            5% { opacity: 1; }
+            95% { opacity: 1; }
+            100% { transform: translateY(-100vh); opacity: 0; }
+        }
+
+        .balloon {
+            position: absolute;
+            width: 50px;
+            height: 70px;
+            background-color: transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            animation: float 8s ease-in infinite;
+        }
+        
+        .balloon::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            width: 2px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-50px); }
+            100% { transform: translateY(0); }
+        }
+
+        .balloon.popped {
+            animation: pop 0.3s forwards;
+            opacity: 0;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(0.1); opacity: 0; }
+        }
+
+        .gift-box {
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            transform-style: preserve-3d;
+            animation: pulse 2s infinite;
+        }
+
+        .gift-box:hover {
+            transform: scale(1.1);
+        }
+
+        .gift-box.clicked {
+            opacity: 0.5;
+            cursor: not-allowed;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Modal for secret message */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+
+        .modal-content {
+            background: #1f2937;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 90%;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            color: #9ca3af;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <!-- Three.js Canvas for Particle Animation -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Main UI Container -->
+    <div id="ui-container" class="visible flex-col">
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-indigo-400">A Special Day Awaits🥳</h1>
+        <p class="mb-4 text-lg">So cutie..🥰Enter your preety name 💕.</p>
+        <input 
+            type="text" 
+            id="name-input" 
+            placeholder="Enter a name" 
+            class="w-full max-w-sm px-4 py-3 mb-6 bg-gray-800 text-center text-white rounded-xl border border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-400"
+            aria-label="Enter a name for the wish"
+        />
+        <button 
+            id="wish-button"
+            class="px-8 py-4 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-400"
+        >
+            Start Celebration!
+        </button>
+    </div>
+
+    <!-- Message Container (Stage 2) -->
+    <div id="message-container" class="flex-col items-center justify-center text-center px-4">
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-indigo-400 animate-pulse">Happy Birthday!</h1>
+        <p class="text-3xl sm:text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-600" id="wished-name"></p>
+        <p class="text-xl sm:text-2xl mb-4">A special day for a special person...😍</p>
+        <div class="circular-photo-container mb-4">
+        <img src="image and video/pogo.jpg" alt="Celebration Photo" class="rounded-full w-32 h-32 object-cover">
+        </div>
+        <button class="px-8 py-4 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-500 transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-green-400" onclick="transitionTo('game-select')">
+            Go to Play Game
+        </button>
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold animate-pulse mt-8">It's Time to Play a Game!</h2>
+        <p class="mt-4">Choose a game to play to unlock your gifts!</p>
+    </div>
+
+    <!-- Game Selection Container (Stage 3) -->
+    <div id="game-select-container" class="flex-col items-center justify-center text-center px-4">
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-8">Choose Your Game</h2>
+        <div class="flex flex-col sm:flex-row gap-6">
+            <button class="px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" onclick="selectGame('balloon-pop')">
+                <p class="text-xl font-bold">Balloon Pop</p>
+                <p class="text-sm text-gray-400 mt-2">A classic for a reason!</p>
+            </button>
+            <!--<button class="px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors"onclick="window.location.href='blow.html'">
+                <p class="text-xl font-bold">Blow the balloon</p>
+                <p class="text-sm text-gray-400 mt-2">Power off Angutha!</p>
+            </button>-->
+            <button class="px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors"onclick="window.location.href='retro2.html'">
+                <p class="text-xl font-bold">Retro image </p>
+                <p class="text-sm text-gray-400 mt-2">Capture Your preety face!</p>
+            </button>
+        </div>
+        <button id="skip-game-button" class="mt-8 px-8 py-4 bg-purple-600 text-white font-bold rounded-full shadow-lg hover:bg-purple-500 transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-400"onclick="window.location.href='gs.html'">
+            Skip Game
+        </button>
+    </div>
+
+
+    <!-- Game Container (Stage 4) -->
+    <div id="game-container" class="flex-col items-center justify-center w-full h-full relative">
+        <div class="flex justify-between w-full max-w-2xl px-4 text-xl sm:text-2xl font-bold mb-4">
+            <span id="pop-counter">Pops: 0</span>
+            <span id="game-timer">Time: 20s</span>
+        </div>
+        <canvas id="game-canvas" class="bg-transparent rounded-lg border-4 border-indigo-500 shadow-xl"></canvas>
+    </div>
+
+    <!-- Post-Game Container (Stage 5) -->
+    <div id="post-game-container" class="flex-col items-center justify-center text-center px-4">
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">Game Over!</h2>
+        <p class="text-xl sm:text-2xl mb-8">You popped <span id="final-score" class="text-indigo-400 font-bold">0</span> balloons!</p>
+        <div class="flex flex-col sm:flex-row gap-4">
+            <button class="px-8 py-4 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-500 transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-400" onclick="transitionTo('game-select')">
+                Play Again
+            </button>
+            <button class="px-8 py-4 bg-purple-600 text-white font-bold rounded-full shadow-lg hover:bg-purple-500 transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-400" onclick="window.location.href='gs.html'">
+                Continue to Gifts
+            </button>
+        </div>
+    </div>
+
+    <!-- Secret Message Container (Stage 6) -->
+    <div id="secret-container" class="flex-col items-center justify-center text-center px-4">
+        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-8">Your Secret Birthday Gifts</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
+            <button class="gift-box px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" data-gift-id="0">
+                <video width="100" height="100" autoplay loop muted playsinline>
+                    <source src="Gift.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>Gift #1</p>
+            </button>
+            <button class="gift-box px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" data-gift-id="1">
+                <video width="100" height="100" autoplay loop muted playsinline>
+                    <source src="Gift.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>Gift #2</p>
+            </button>
+            <button class="gift-box px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" data-gift-id="2">
+                <video width="100" height="100" autoplay loop muted playsinline>
+                    <source src="Gift.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>Gift #3</p>
+            </button>
+            <button class="gift-box px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" data-gift-id="3">
+                <video width="100" height="100" autoplay loop muted playsinline>
+                    <source src="Gift.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>Gift #4</p>
+            </button>
+            <button class="gift-box px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" data-gift-id="4">
+                <video width="100" height="100" autoplay loop muted playsinline>
+                    <source src="Gift.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>Gift #5</p>
+            </button>
+            <button class="gift-box px-8 py-4 bg-gray-800 rounded-xl shadow-lg border border-indigo-500 hover:bg-indigo-700 transition-colors" data-gift-id="5">
+                <video width="100" height="100" autoplay loop muted playsinline>
+                    <source src="Gift.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <p>Gift #6</p>
+            </button>
+        </div>
+        <button id="final-reveal-button" class="mt-8 px-8 py-4 bg-purple-600 text-white font-bold rounded-full shadow-lg hover:bg-purple-500 transition-transform transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-400 hidden">
+            Click Here for a Final Surprise!
+        </button>
+    </div>
+
+    <!-- Final Message Container (Stage 7) -->
+    <div id="final-message-container" class="flex-col items-center justify-center text-center px-4">
+        <h2 class="text-4xl sm:text-5xl md:text-6xl font-bold animate-pulse text-indigo-400">A Final Surprise!</h2>
+        <p class="mt-4 text-xl sm:text-2xl max-w-3xl">This is for you, my dearest friend. Remember how much you are loved and appreciated. I hope all your dreams come true, today and always. ❤️</p>
+    </div>
+
+
+    <!-- Modal for showing secret messages -->
+    <div id="secret-modal" class="modal">
+        <div class="modal-content relative">
+            <span class="close-button" onclick="document.getElementById('secret-modal').style.display='none'">&times;</span>
+            <h3 class="text-2xl font-bold mb-4">A Secret Message!</h3>
+            <p id="modal-text" class="text-lg"></p>
+        </div>
+    </div>
+
+    <script>
+        // DOM element references
+        const nameInput = document.getElementById('name-input');
+        const wishButton = document.getElementById('wish-button');
+        const uiContainer = document.getElementById('ui-container');
+        const messageContainer = document.getElementById('message-container');
+        const wishedNameSpan = document.getElementById('wished-name');
+        const gameSelectContainer = document.getElementById('game-select-container');
+        const gameContainer = document.getElementById('game-container');
+        const postGameContainer = document.getElementById('post-game-container');
+        const finalScoreSpan = document.getElementById('final-score');
+        const secretContainer = document.getElementById('secret-container');
+        const secretModal = document.getElementById('secret-modal');
+        const modalText = document.getElementById('modal-text');
+        const giftBoxes = document.querySelectorAll('.gift-box');
+        const finalRevealButton = document.getElementById('final-reveal-button');
+        const finalMessageContainer = document.getElementById('final-message-container');
+        const popCounter = document.getElementById('pop-counter');
+        const gameTimerDisplay = document.getElementById('game-timer');
+
+
+        // State management
+        let currentStage = 'input'; // 'input', 'message', 'game-select', 'game', 'post-game', 'secrets', 'finalMessage'
+        const stageElements = {
+            'input': uiContainer,
+            'message': messageContainer,
+            'game-select': gameSelectContainer,
+            'game': gameContainer,
+            'post-game': postGameContainer,
+            'secrets': secretContainer,
+            'finalMessage': finalMessageContainer
+        };
+        const GAME_DURATION = 20000; // 20 seconds
+        let gameActive = false;
+        let gameTimer = null;
+        let balloonsPopped = 0;
+        let emojiInterval = null;
+
+        const secretMessages = [
+            "You are an amazing person who brings so much joy into the world!",
+            "May your day be filled with laughter, happiness, and everything you've ever wished for.",
+            "This year is going to be your best one yet. Keep shining bright!",
+            "Your kindness and spirit are a gift to everyone around you. Thank you for being you!",
+            "Wishing you a day as brilliant and wonderful as you are. Happy Birthday! 🎉",
+            "On your special day, remember that you deserve all the happiness in the world. Enjoy it!",
+            "To the person who makes the world a better place, a very happy birthday!",
+            "Every day with you is a celebration. Wishing you the happiest of birthdays!",
+            "Cheers to you on your birthday! May your life be as sweet as cake.",
+            "Thank you for being such a wonderful friend. Happy birthday!"
+        ];
+        
+        let revealedGifts = new Set();
+        const giftIds = [0, 1, 2, 3, 4, 5];
+
+        // --- Three.js & Particle Animation ---
+        let scene, camera, renderer, particles, particleGeometry;
+
+        function initParticles() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+            const particleCanvas = document.getElementById('particle-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas: particleCanvas, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            particleGeometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const particleCount = 2000;
+            const color = new THREE.Color();
+            
+            for (let i = 0; i < particleCount; i++) {
+                const x = (Math.random() - 0.5) * 10;
+                const y = (Math.random() - 0.5) * 10;
+                const z = (Math.random() - 0.5) * 10;
+                positions.push(x, y, z);
+                color.setHSL(Math.random(), 1.0, 0.7);
+                colors.push(color.r, color.g, color.b);
+            }
+            
+            particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.05,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            animateParticles();
+        }
+
+        function animateParticles() {
+            requestAnimationFrame(animateParticles);
+            const positions = particleGeometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 1] += 0.005; 
+                if (positions[i + 1] > 5) {
+                    positions[i + 1] = -5;
+                }
+            }
+            particleGeometry.attributes.position.needsUpdate = true;
+            particles.rotation.x += 0.0005;
+            particles.rotation.y += 0.0005;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                confetti.style.animationDelay = `${Math.random() * 3}s`;
+                confetti.style.setProperty('--x', `${(Math.random() - 0.5) * 500}px`);
+                confetti.style.setProperty('--y', `${window.innerHeight + 200}px`);
+                confetti.style.setProperty('--r', `${Math.random() * 360}deg`);
+                document.body.appendChild(confetti);
+            }
+        }
+        
+        function createLoveEmojis() {
+            const emojis = ['❤️', '✨', '💖', '🌟', '🎉', '🎈'];
+            const emoji = document.createElement('div');
+            emoji.classList.add('emoji-animation');
+            emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            emoji.style.left = `${Math.random() * 100}vw`;
+            emoji.style.animationDuration = `${Math.random() * 3 + 5}s`;
+            document.body.appendChild(emoji);
+
+            setTimeout(() => {
+                emoji.remove();
+            }, 8000);
+        }
+
+        // --- Game Logic ---
+        let balloons = [];
+        const gameCanvas = document.getElementById('game-canvas');
+        const ctx = gameCanvas.getContext('2d');
+        let gameCountdown;
+
+        class Balloon {
+            constructor() {
+                this.x = Math.random() * gameCanvas.width;
+                this.y = gameCanvas.height + 50;
+                this.radius = 20 + Math.random() * 15;
+                this.speed = Math.random() * 1 + 0.5;
+                this.color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                this.popped = false;
+            }
+
+            draw() {
+                if (this.popped) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.radius);
+                ctx.lineTo(this.x, this.y + this.radius + 30);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            update() {
+                this.y -= this.speed;
+                if (this.y < -50) {
+                    this.y = gameCanvas.height + 50;
+                    this.x = Math.random() * gameCanvas.width;
+                }
+            }
+        }
+
+        function spawnBalloons() {
+            for (let i = 0; i < 20; i++) {
+                balloons.push(new Balloon());
+            }
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+            balloons.forEach(balloon => {
+                balloon.update();
+                balloon.draw();
+            });
+            requestAnimationFrame(gameLoop);
+        }
+
+        function popBalloon(event) {
+            const rect = gameCanvas.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            for (let i = balloons.length - 1; i >= 0; i--) {
+                const balloon = balloons[i];
+                const distance = Math.sqrt((clickX - balloon.x)**2 + (clickY - balloon.y)**2);
+                if (distance < balloon.radius) {
+                    balloons.splice(i, 1);
+                    balloonsPopped++;
+                    popCounter.textContent = `Pops: ${balloonsPopped}`;
+                    balloons.push(new Balloon()); // Spawn a new balloon
+                    return;
+                }
+            }
+        }
+
+        function resizeGameCanvas() {
+            gameCanvas.width = window.innerWidth * 0.8;
+            gameCanvas.height = window.innerHeight * 0.7;
+        }
+
+        function startGame() {
+            gameActive = true;
+            balloons = [];
+            balloonsPopped = 0;
+            popCounter.textContent = `Pops: ${balloonsPopped}`;
+            spawnBalloons();
+            gameLoop();
+            gameCanvas.addEventListener('click', popBalloon);
+
+            // Set game timer
+            let timeLeft = GAME_DURATION / 1000;
+            gameTimerDisplay.textContent = `Time: ${timeLeft}s`;
+            gameCountdown = setInterval(() => {
+                timeLeft--;
+                gameTimerDisplay.textContent = `Time: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+        
+        function endGame() {
+            gameActive = false;
+            clearInterval(gameCountdown);
+            gameCanvas.removeEventListener('click', popBalloon);
+            finalScoreSpan.textContent = balloonsPopped;
+            transitionTo('post-game');
+        }
+
+        // --- State Transitions ---
+        function transitionTo(stage) {
+            if (stage === currentStage) return;
+            
+            const currentElement = stageElements[currentStage];
+            if (currentElement) {
+                currentElement.classList.remove('visible');
+            }
+
+            const nextElement = stageElements[stage];
+            if (nextElement) {
+                setTimeout(() => {
+                    if (currentElement) currentElement.style.display = 'none';
+                    nextElement.style.display = 'flex';
+                    setTimeout(() => {
+                        nextElement.classList.add('visible');
+                        currentStage = stage;
+                    }, 50);
+                }, 1000);
+            }
+        }
+        
+        function selectGame(gameId) {
+            if (gameId === 'balloon-pop') {
+                transitionTo('game');
+                resizeGameCanvas();
+                startGame();
+            }
+        }
+
+        // --- Main Logic & Event Listeners ---
+        function startCelebration() {
+            const name = nameInput.value.trim();
+            if (name === '') {
+                const tempMsg = document.createElement('div');
+                tempMsg.textContent = "Please enter a name.";
+                tempMsg.className = "text-red-500 mt-4 animate-pulse";
+                uiContainer.appendChild(tempMsg);
+                setTimeout(() => uiContainer.removeChild(tempMsg), 2000);
+                return;
+            }
+
+            wishedNameSpan.textContent = name;
+            console.log("Transitioning to message container");
+            transitionTo('message');
+            createConfetti();
+            emojiInterval = setInterval(createLoveEmojis, 1500); // Reduced emoji frequency
+        }
+
+        giftBoxes.forEach((box) => {
+            box.addEventListener('click', () => {
+                const giftId = box.dataset.giftId;
+                if (!revealedGifts.has(giftId)) {
+            const messages = [
+                "Happy Birthday to my favorite little sister, Rishika! I hope your day is as bright and wonderful as you are. May this year bring you endless happiness, laughter, and all the things you love most. Love, your Pogo.",
+                "To my dearest Rishika, on your birthday, I wish you all the joy in the world. You are a ray of sunshine in my life, and I am so grateful to have you as my sister. Have the most amazing day!",
+                "Rishika! Another year, another reason to celebrate the amazing person you are. I hope your birthday is filled with fun, good food, and unforgettable memories. Love you always, my little sister.",
+                "Wishing a very happy birthday to the one and only Rishika! May your special day be the start of a year filled with new adventures, exciting opportunities, and pure happiness. You deserve nothing but the best.",
+                "Happy Birthday, Rishika! You are not just my sister; you are my life. I hope all your dreams come true and that your life is filled with love and laughter. Cheers to another wonderful year!",
+                "To my sweet Rishika, my Pogo, on your birthday: Thank you for being such a wonderful sister. You bring so much joy and light into my life. I hope you have a day as beautiful and special as you are. Happy Birthday!"
+            ];
+            modalText.textContent = messages[giftId];
+                    secretModal.style.display = 'flex';
+                    revealedGifts.add(giftId);
+                    box.classList.add('clicked');
+                    
+                    if (revealedGifts.size === giftIds.length) {
+                        finalRevealButton.classList.remove('hidden');
+                    }
+                }
+            });
+        });
+
+        finalRevealButton.addEventListener('click', () => {
+            transitionTo('finalMessage');
+            clearInterval(emojiInterval);
+        });
+
+        wishButton.addEventListener('click', startCelebration);
+        nameInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                startCelebration();
+            }
+        });
+
+        window.onload = initParticles;
+        transitionTo('input'); // Set initial stage
+    </script>
+</body>
+</html>

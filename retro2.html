@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Photobooth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for filters */
+        .filter-cinematic { filter: contrast(1.2) saturate(1.1) brightness(0.9); }
+        .filter-movie { filter: sepia(0.3) contrast(1.1) brightness(0.95); }
+        .filter-dark { filter: brightness(0.7) contrast(1.3); }
+        .filter-warm { filter: sepia(0.4) saturate(1.2); }
+        .filter-bw { filter: grayscale(1); }
+
+        /* Styling for the film strip effect */
+        .film-strip {
+            background-color: #1a1a1a;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .film-strip::before, .film-strip::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 15px;
+            background-image:
+                radial-gradient(circle at 50% 7.5px, transparent 3px, #1a1a1a 3px),
+                radial-gradient(circle at 50% 7.5px, transparent 3px, #1a1a1a 3px);
+            background-size: 15px 15px;
+            background-repeat: repeat-y;
+        }
+        .film-strip::before { left: 0; }
+        .film-strip::after { right: 0; }
+        
+        .photo-slot {
+            background-color: #333;
+            border: 2px dashed #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+            font-family: 'Inter', sans-serif;
+        }
+        .photo-slot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* Custom font for birthday message */
+        .font-marker {
+            font-family: 'Permanent Marker', cursive;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto flex flex-col lg:flex-row gap-8 items-center lg:items-start relative">
+
+        <!-- Left Side: Camera and Controls -->
+        <div class="w-full max-w-lg flex-shrink-0">
+            <h1 class="text-4xl font-bold text-center mb-2 text-amber-300">Retro PhotoBooth</h1>
+            <p class="text-center text-gray-400 mb-6">Select a filter, strike a pose, and create a memory!</p>
+
+            <div class="relative w-full aspect-[4/3] bg-black rounded-lg shadow-2xl overflow-hidden mb-4 border-4 border-gray-700">
+                <video id="video" class="w-full h-full object-cover" autoplay playsinline></video>
+                <div id="countdown" class="absolute inset-0 flex items-center justify-center text-9xl font-bold text-white bg-black bg-opacity-50 hidden drop-shadow-lg"></div>
+                 <!-- Pre-capture Instructions Modal -->
+                <div id="instructions-modal" class="absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center text-center p-8 hidden z-50 rounded-lg">
+                    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl max-w-md border border-gray-600">
+                        <h2 class="text-3xl font-bold text-amber-300 mb-4">Get Ready!</h2>
+                        <p class="text-lg text-gray-300 mb-6">We're taking 3 photos for the strip. <br><strong>Strike a pose for each one!</strong></p>
+                        <button id="start-now-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-xl transition-all duration-200 shadow-lg transform hover:scale-105">
+                            Let's Go!
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-3 text-center">Choose a Filter</h2>
+                <div id="filter-container" class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    <button data-filter="" class="filter-btn bg-gray-700 hover:bg-amber-500 focus:ring-4 focus:ring-amber-400 rounded-lg p-2 text-sm transition-all duration-200 border-2 border-transparent">Normal</button>
+                    <button data-filter="filter-cinematic" class="filter-btn bg-gray-700 hover:bg-amber-500 focus:ring-4 focus:ring-amber-400 rounded-lg p-2 text-sm transition-all duration-200">Cinematic</button>
+                    <button data-filter="filter-movie" class="filter-btn bg-gray-700 hover:bg-amber-500 focus:ring-4 focus:ring-amber-400 rounded-lg p-2 text-sm transition-all duration-200">Movie</button>
+                    <button data-filter="filter-dark" class="filter-btn bg-gray-700 hover:bg-amber-500 focus:ring-4 focus:ring-amber-400 rounded-lg p-2 text-sm transition-all duration-200">Dark</button>
+                    <button data-filter="filter-warm" class="filter-btn bg-gray-700 hover:bg-amber-500 focus:ring-4 focus:ring-amber-400 rounded-lg p-2 text-sm transition-all duration-200">Warm</button>
+                    <button data-filter="filter-bw" class="filter-btn bg-gray-700 hover:bg-amber-500 focus:ring-4 focus:ring-amber-400 rounded-lg p-2 text-sm transition-all duration-200 col-start-2 sm:col-start-auto">B & W</button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col gap-3">
+                <button id="capture" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-lg text-xl transition-all duration-200 shadow-lg transform hover:scale-105">
+                    📸 Start Photo Session
+                </button>
+                 <button id="reset" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 hidden">
+                    🔄 Start Over
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Side: Photo Strip and Options -->
+        <div class="w-full max-w-xs lg:mt-28">
+             <div id="film-strip" class="film-strip">
+                <div class="photo-slot w-full aspect-[4/3]">1</div>
+                <div class="photo-slot w-full aspect-[4/3]">2</div>
+                <div class="photo-slot w-full aspect-[4/3]">3</div>
+            </div>
+            <a id="download" class="hidden w-full mt-4 bg-green-600 hover:bg-green-700 text-white text-center font-bold py-3 px-5 rounded-lg text-lg transition-all duration-200 shadow-lg transform hover:scale-105">
+                ⬇️ Download Strip
+            </a>
+            <!-- Post-session options -->
+            <!--<div id="post-session-options" class="hidden flex-col gap-3 mt-4">
+                <button class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-5 rounded-lg text-lg transition-all duration-200 shadow-lg transform hover:scale-105" onclick="window.location.href='wish.html'">
+                    🎮 Play a Game
+                </button>-->
+                <br>
+                <button class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-5 rounded-lg text-lg transition-all duration-200 shadow-lg transform hover:scale-105"onclick="window.location.href='gs.html'">
+                    🎁 Claim Your Gift
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden canvas for processing -->
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <script>
+        // DOM Elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const countdownEl = document.getElementById('countdown');
+        const captureBtn = document.getElementById('capture');
+        const resetBtn = document.getElementById('reset');
+        const downloadLink = document.getElementById('download');
+        const filterContainer = document.getElementById('filter-container');
+        const photoSlots = document.querySelectorAll('.photo-slot');
+        const instructionsModal = document.getElementById('instructions-modal');
+        const startNowBtn = document.getElementById('start-now-btn');
+        const postSessionOptions = document.getElementById('post-session-options');
+
+        // State
+        let stream;
+        let currentFilter = '';
+        const capturedPhotos = [];
+
+        // --- Core Functions ---
+
+        // 1. Initialize Camera
+        async function initCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                const errorDiv = document.createElement('div');
+                errorDiv.textContent = 'Could not access camera. Please check permissions and refresh.';
+                errorDiv.className = 'bg-red-500 text-white p-4 rounded-lg text-center absolute top-4';
+                document.body.prepend(errorDiv);
+            }
+        }
+
+        // 2. Apply Filter
+        function applyFilter(filterClass) {
+            video.className = 'w-full h-full object-cover'; // Reset classes
+            if (filterClass) {
+                video.classList.add(filterClass);
+            }
+            currentFilter = filterClass;
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === filterClass) {
+                    btn.classList.add('border-amber-500', 'bg-amber-500');
+                    btn.classList.remove('bg-gray-700', 'border-transparent');
+                } else {
+                    btn.classList.remove('border-amber-500', 'bg-amber-500');
+                    btn.classList.add('bg-gray-700', 'border-transparent');
+                }
+            });
+        }
+
+        // 3. Capture Sequence
+        function startCaptureSequence() {
+            captureBtn.disabled = true;
+            captureBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            instructionsModal.classList.remove('hidden');
+            instructionsModal.classList.add('flex');
+        }
+        
+        function beginCountdownSequence() {
+            instructionsModal.classList.add('hidden');
+            instructionsModal.classList.remove('flex');
+            capturePhotoWithCountdown(0);
+        }
+
+        function capturePhotoWithCountdown(index) {
+            if (index >= 3) {
+                finalizeStrip();
+                return;
+            }
+
+            let count = 3;
+            countdownEl.textContent = count;
+            countdownEl.classList.remove('hidden');
+
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.textContent = count;
+                } else {
+                    clearInterval(timer);
+                    countdownEl.classList.add('hidden');
+                    takePhoto(index);
+                    setTimeout(() => capturePhotoWithCountdown(index + 1), 1000);
+                }
+            }, 1000);
+        }
+
+        // 4. Take a single photo
+        function takePhoto(index) {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const computedStyle = getComputedStyle(video);
+            context.filter = computedStyle.filter;
+            
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            capturedPhotos[index] = dataUrl;
+
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            photoSlots[index].innerHTML = '';
+            photoSlots[index].appendChild(img);
+        }
+
+        // 5. Finalize the strip
+        function finalizeStrip() {
+            captureBtn.classList.add('hidden');
+            resetBtn.classList.remove('hidden');
+            downloadLink.classList.remove('hidden');
+            postSessionOptions.classList.remove('hidden');
+            postSessionOptions.classList.add('flex');
+            generateFinalImage();
+        }
+
+        // 6. Generate the final downloadable image
+        function generateFinalImage() {
+            const finalCanvas = document.createElement('canvas');
+            const ctx = finalCanvas.getContext('2d');
+
+            const photoWidth = 800;
+            const photoHeight = 600;
+            const padding = 20;
+            const sprocketWidth = 30;
+            const totalWidth = photoWidth + 2 * padding + 2 * sprocketWidth;
+            const totalHeight = (photoHeight + padding) * 3 + padding;
+
+            finalCanvas.width = totalWidth;
+            finalCanvas.height = totalHeight;
+
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+            ctx.fillStyle = '#333';
+            for (let y = padding; y < totalHeight; y += 30) {
+                ctx.fillRect(padding, y, 15, 15);
+                ctx.fillRect(totalWidth - padding - 15, y, 15, 15);
+            }
+
+            let imagesLoaded = 0;
+            capturedPhotos.forEach((dataUrl, index) => {
+                const img = new Image();
+                img.onload = () => {
+                    const yPos = padding + index * (photoHeight + padding);
+                    ctx.drawImage(img, padding + sprocketWidth, yPos, photoWidth, photoHeight);
+                    
+                    if (index === 2) {
+                        addBirthdayMessage(ctx, padding + sprocketWidth, yPos, photoWidth, photoHeight);
+                    }
+                    
+                    imagesLoaded++;
+                    if (imagesLoaded === capturedPhotos.length) {
+                        downloadLink.href = finalCanvas.toDataURL('image/jpeg');
+                        downloadLink.download = 'photobooth-strip.jpg';
+                    }
+                };
+                img.src = dataUrl;
+            });
+        }
+        
+        // 7. Add birthday message overlay
+        function addBirthdayMessage(ctx, x, y, width, height) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.font = "bold 80px 'Permanent Marker', cursive";
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.lineWidth = 8;
+            const text = "Happy Birthday!";
+            ctx.strokeText(text, x + width / 2, y + height - 100);
+            ctx.fillText(text, x + width / 2, y + height - 100);
+
+            ctx.font = "100px sans-serif";
+            ctx.fillText('💖🎂', x + width / 2, y + 80);
+        }
+
+        // 8. Reset the application state
+        function resetApp() {
+            capturedPhotos.length = 0;
+            photoSlots.forEach((slot, index) => {
+                slot.innerHTML = (index + 1);
+            });
+            captureBtn.disabled = false;
+            captureBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'hidden');
+            resetBtn.classList.add('hidden');
+            downloadLink.classList.add('hidden');
+            postSessionOptions.classList.add('hidden');
+            postSessionOptions.classList.remove('flex');
+            instructionsModal.classList.add('hidden');
+            instructionsModal.classList.remove('flex');
+            applyFilter('');
+        }
+
+        // --- Event Listeners ---
+        filterContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('filter-btn')) {
+                applyFilter(e.target.dataset.filter);
+            }
+        });
+
+        captureBtn.addEventListener('click', startCaptureSequence);
+        startNowBtn.addEventListener('click', beginCountdownSequence);
+        resetBtn.addEventListener('click', resetApp);
+
+        // --- Initial Setup ---
+        window.addEventListener('load', () => {
+            initCamera();
+            applyFilter(''); // Set default filter style
+        });
+
+    </script>
+</body>
+</html>
